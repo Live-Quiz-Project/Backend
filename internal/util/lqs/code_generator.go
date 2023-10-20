@@ -1,4 +1,4 @@
-package util
+package lqs
 
 import (
 	"fmt"
