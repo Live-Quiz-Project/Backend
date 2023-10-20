@@ -3,7 +3,7 @@ package router
 import (
 	"time"
 
-	v1 "github.com/Live-Quiz-Project/Backend/internal/handler/v1"
+	wsh "github.com/Live-Quiz-Project/Backend/internal/handler/v1/ws"
 	wsm "github.com/Live-Quiz-Project/Backend/internal/model/ws"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -27,10 +27,10 @@ func InitRouter() {
 	}))
 
 	wsHub := wsm.NewHub()
-	wsHandler := v1.NewWSHandler(wsHub)
+	wsHandler := wsh.NewWSHandler(wsHub)
 	go wsHub.Run()
 
-	WebSocketRoutes(r, wsHandler)
+	LiveQuizSessionRoutes(r, wsHandler)
 }
 
 func Start(addr string) error {
