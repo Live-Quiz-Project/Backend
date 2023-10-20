@@ -1,5 +1,9 @@
 package ws
 
+import (
+	"github.com/Live-Quiz-Project/Backend/internal/util/lqs"
+)
+
 type Hub struct {
 	LiveQuizSessions map[string]*LiveQuizSession
 	Register         chan *Client
@@ -42,12 +46,11 @@ func (h *Hub) Run() {
 					if len(h.LiveQuizSessions[cl.LiveQuizSessionID].Clients) != 0 {
 						h.Broadcast <- &Message{
 							Content: Content{
-								Type:    "left-lqs",
+								Type:    lqs.LeftLQS,
 								Payload: nil,
 							},
 							LiveQuizSessionID: cl.LiveQuizSessionID,
 							UserID:            cl.ID,
-							Username:          cl.Name,
 							IsHost:            cl.IsHost,
 						}
 					}
@@ -60,7 +63,9 @@ func (h *Hub) Run() {
 		case m := <-h.Broadcast:
 			if _, ok := h.LiveQuizSessions[m.LiveQuizSessionID]; ok {
 				for _, cl := range h.LiveQuizSessions[m.LiveQuizSessionID].Clients {
-					cl.Message <- m
+					if cl.ID != m.UserID {
+						cl.Message <- m
+					}
 				}
 			}
 		case m := <-h.Private:
