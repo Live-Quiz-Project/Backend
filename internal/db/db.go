@@ -9,9 +9,18 @@ import (
 
 var DB *sql.DB
 
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "DBuser"
+	password = "DBpass"
+	dbname   = "lqp_db"
+)
+
 func InitDB() {
 	var err error
-	DB, err = sql.Open("postgres", "user=DBuser dbname=postgres_db password=DBpass sslmode=disable")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	DB, err = sql.Open("postgres", psqlconn)
 
 	if err != nil {
 		panic(err)

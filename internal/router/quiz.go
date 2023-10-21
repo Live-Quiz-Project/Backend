@@ -6,9 +6,10 @@ import (
 )
 
 func QuizManagementRoutes(r *gin.Engine) {
-	qr := r.Group("/quiz-mgmt")
+	v1 := r.Group("/v1")
+	qr := v1.Group("/quiz-mgmt")
 
-	qr.GET("/",quiz.GetQuizzes)
+	qr.GET("/quizzes",quiz.GetQuizzes)
 	// qr := GET("/quiz", )
 
 	// wsr := r.Group("/lqses")

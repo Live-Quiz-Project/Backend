@@ -13,7 +13,7 @@ import (
 func GetQuizzes(c *gin.Context) {
 	db := db.DB
 	// Execute a database query to retrieve users
-	rows, err := db.Query("SELECT id, title, description, owner_id, created_at FROM quiz")
+	rows, err := db.Query("SELECT id, user_id, title, description, media, created_date, modified_date FROM quiz")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
