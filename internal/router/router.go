@@ -30,11 +30,11 @@ func InitRouter() {
 
 	wsHub := wsm.NewHub()
 	wsHandler := wsh.NewWSHandler(wsHub)
+	userService := us.NewUserService()
+	userHandler := uh.NewUserHandler(userService)
 	go wsHub.Run()
 
 	LiveQuizSessionRoutes(r, wsHandler)
-	userService := us.NewUserService()
-	userHandler := uh.NewUserHandler(userService)
 	AuthRoutes(r, userHandler)
 }
 

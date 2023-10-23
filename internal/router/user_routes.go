@@ -10,5 +10,4 @@ func AuthRoutes(r *gin.Engine, userHandler *user_handler.UserHandler) {
 
 	authGroup.POST("/register", userHandler.Register)
 	authGroup.POST("/login", userHandler.Login)
-
 }
