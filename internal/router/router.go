@@ -3,7 +3,7 @@ package router
 import (
 	"time"
 
-	uh "github.com/Live-Quiz-Project/Backend/internal/handler/user_handler"
+	uh "github.com/Live-Quiz-Project/Backend/internal/handler/v1"
 	wsh "github.com/Live-Quiz-Project/Backend/internal/handler/v1/ws"
 	wsm "github.com/Live-Quiz-Project/Backend/internal/model/ws"
 	us "github.com/Live-Quiz-Project/Backend/internal/service"

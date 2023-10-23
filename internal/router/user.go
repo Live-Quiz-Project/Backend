@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/Live-Quiz-Project/Backend/internal/handler/user_handler"
+	user_handler "github.com/Live-Quiz-Project/Backend/internal/handler/v1"
 	"github.com/gin-gonic/gin"
 )
 
