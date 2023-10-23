@@ -36,6 +36,7 @@ func InitRouter() {
 
 	LiveQuizSessionRoutes(r, wsHandler)
 	AuthRoutes(r, userHandler)
+	QuizManagementRoutes(r)
 }
 
 func Start(addr string) error {
