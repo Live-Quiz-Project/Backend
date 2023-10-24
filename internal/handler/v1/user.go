@@ -3,35 +3,36 @@ package user_handler
 import (
 	"net/http"
 
+	"github.com/Live-Quiz-Project/Backend/internal/middleware"
 	"github.com/Live-Quiz-Project/Backend/internal/model/user"
-	"github.com/Live-Quiz-Project/Backend/internal/service"
+	"github.com/Live-Quiz-Project/Backend/internal/util"
 	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
-	userService *service.UserService
+	userService *middleware.UserService
 }
 
-func NewUserHandler(userService *service.UserService) *UserHandler {
+func NewUserHandler(userService *middleware.UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}
 }
 
 func (uh *UserHandler) Register(c *gin.Context) {
-	var user user.User
-	if err := c.BindJSON(&user); err != nil {
+	var newUser user.User
+	if err := c.BindJSON(&newUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	err := uh.userService.Register(&user)
+	err := uh.userService.Register(&newUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Registration successful"})
 }
 
 func (uh *UserHandler) Login(c *gin.Context) {
@@ -51,7 +52,14 @@ func (uh *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate a JWT token or perform other login logic here
+	// Generate a JWT token
+	token, err := util.GenerateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+		return
+	}
 
-	c.JSON(http.StatusOK, user)
+	user.Password = ""
+
+	c.JSON(http.StatusOK, gin.H{"user": user, "token": token})
 }

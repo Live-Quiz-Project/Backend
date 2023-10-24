@@ -5,8 +5,8 @@ import (
 
 	uh "github.com/Live-Quiz-Project/Backend/internal/handler/v1"
 	wsh "github.com/Live-Quiz-Project/Backend/internal/handler/v1/ws"
+	us "github.com/Live-Quiz-Project/Backend/internal/middleware"
 	wsm "github.com/Live-Quiz-Project/Backend/internal/model/ws"
-	us "github.com/Live-Quiz-Project/Backend/internal/service"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
