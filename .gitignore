@@ -19,6 +19,7 @@
 /bin
 /tmp
 */tmp
+/postgres
 
 # Go workspace file
 go.work

@@ -35,9 +35,11 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *WSHandler) CreateLiveQuizSession(c *gin.Context) {
-	var req struct {
+	type request struct {
 		QuizID string `json:"quizId"`
 	}
+
+	var req request
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -45,7 +47,7 @@ func (h *WSHandler) CreateLiveQuizSession(c *gin.Context) {
 
 	lqsID := uuid.New().String()
 
-	var lqsCode string
+	var code string
 	codes := make([]string, 0)
 	for _, s := range h.hub.LiveQuizSessions {
 		if s.QuizID == req.QuizID {
@@ -55,12 +57,17 @@ func (h *WSHandler) CreateLiveQuizSession(c *gin.Context) {
 	}
 
 	if _, ok := h.hub.LiveQuizSessions[lqsID]; !ok {
-		lqsCode = lqsUtil.LQSCodeGenerator(codes)
+		code = lqsUtil.LQSCodeGenerator(codes)
 		h.hub.LiveQuizSessions[lqsID] = &wsm.LiveQuizSession{
 			ID:      lqsID,
 			QuizID:  req.QuizID,
-			Code:    lqsCode,
+			Code:    code,
 			Clients: make(map[string]*wsm.Client),
+			Moderator: &wsm.Moderator{
+				LiveQuizSessionID: lqsID,
+				CurrentQuestion:   0,
+				Status:            lqsUtil.Idle,
+			},
 		}
 		c.JSON(http.StatusOK, struct {
 			ID     string `json:"id"`
@@ -69,7 +76,7 @@ func (h *WSHandler) CreateLiveQuizSession(c *gin.Context) {
 		}{
 			ID:     lqsID,
 			QuizID: req.QuizID,
-			Code:   lqsCode,
+			Code:   code,
 		})
 		return
 	}
@@ -97,6 +104,16 @@ func (h *WSHandler) EndLiveQuizSession(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Can't close client connection"})
 			return
 		}
+	}
+
+	h.hub.Broadcast <- &wsm.Message{
+		Content: wsm.Content{
+			Type:    lqsUtil.EndLQS,
+			Payload: "Session has ended.",
+		},
+		LiveQuizSessionID: lqsID,
+		UserID:            "Host",
+		IsHost:            true,
 	}
 
 	delete(h.hub.LiveQuizSessions, lqsID)
@@ -208,15 +225,15 @@ func (h *WSHandler) GetLiveQuizSessions(c *gin.Context) {
 
 func (h *WSHandler) GetParticipants(c *gin.Context) {
 	var p []struct {
-		ID       string `json:"id"`
-		Username string `json:"name"`
+		ID   string `json:"id"`
+		Name string `json:"name"`
 	}
 
 	lqsID := c.Param("id")
 	if _, ok := h.hub.LiveQuizSessions[lqsID]; !ok {
 		p = make([]struct {
-			ID       string `json:"id"`
-			Username string `json:"name"`
+			ID   string `json:"id"`
+			Name string `json:"name"`
 		}, 0)
 		c.JSON(http.StatusOK, p)
 		return
@@ -225,11 +242,11 @@ func (h *WSHandler) GetParticipants(c *gin.Context) {
 	for _, c := range h.hub.LiveQuizSessions[lqsID].Clients {
 		if !c.IsHost {
 			p = append(p, struct {
-				ID       string `json:"id"`
-				Username string `json:"name"`
+				ID   string `json:"id"`
+				Name string `json:"name"`
 			}{
-				ID:       c.ID,
-				Username: c.Name,
+				ID:   c.ID,
+				Name: c.Name,
 			})
 		}
 	}
@@ -238,16 +255,16 @@ func (h *WSHandler) GetParticipants(c *gin.Context) {
 
 func (h *WSHandler) GetHost(c *gin.Context) {
 	var p []struct {
-		ID       string `json:"id"`
-		Username string `json:"name"`
+		ID   string `json:"id"`
+		Name string `json:"name"`
 	}
 
 	lqsID := c.Param("id")
 
 	if _, ok := h.hub.LiveQuizSessions[lqsID]; !ok {
 		p = make([]struct {
-			ID       string `json:"id"`
-			Username string `json:"name"`
+			ID   string `json:"id"`
+			Name string `json:"name"`
 		}, 0)
 		c.JSON(http.StatusOK, p)
 		return
@@ -256,11 +273,11 @@ func (h *WSHandler) GetHost(c *gin.Context) {
 	for _, c := range h.hub.LiveQuizSessions[lqsID].Clients {
 		if c.IsHost {
 			p = append(p, struct {
-				ID       string `json:"id"`
-				Username string `json:"name"`
+				ID   string `json:"id"`
+				Name string `json:"name"`
 			}{
-				ID:       c.ID,
-				Username: c.Name,
+				ID:   c.ID,
+				Name: c.Name,
 			})
 			break
 		}
@@ -268,20 +285,45 @@ func (h *WSHandler) GetHost(c *gin.Context) {
 	c.JSON(http.StatusOK, p)
 }
 
+func (h *WSHandler) CheckLiveQuizSessionAvailability(c *gin.Context) {
+	code := c.Param("code")
+
+	for _, s := range h.hub.LiveQuizSessions {
+		if s.Code == code {
+			c.JSON(http.StatusOK, struct {
+				ID              string `json:"id"`
+				QuizID          string `json:"quizId"`
+				Code            string `json:"code"`
+				CurrentQuestion int    `json:"curQ"`
+				Status          string `json:"status"`
+			}{
+				ID:              s.ID,
+				QuizID:          s.QuizID,
+				Code:            s.Code,
+				CurrentQuestion: s.Moderator.CurrentQuestion,
+				Status:          s.Moderator.Status,
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": "No such session exists"})
+}
+
 func (h *WSHandler) JoinLiveQuizSession(c *gin.Context) {
-	lqsCode := c.Param("code")
+	code := c.Param("code")
 	uid := c.Query("uid")
 	uname := c.Query("uname")
 	isHost := c.Query("is-host")
 	var lqsID string
 
 	for _, s := range h.hub.LiveQuizSessions {
-		if s.Code == lqsCode {
+		if s.Code == code {
 			lqsID = s.ID
 		}
 		for _, cl := range s.Clients {
 			if cl.IsHost && isHost == "true" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Only 1 host is allowed per session"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Host already exists in this session"})
 				return
 			}
 		}
@@ -347,9 +389,10 @@ func (h *WSHandler) readMessage(c *wsm.Client) {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("Error occured: %v", err)
+				break
 			}
-			break
 		}
+		log.Printf("Message received: %s", m)
 
 		var mstr wsm.Content
 		if err := json.Unmarshal(m, &mstr); err != nil {
@@ -363,13 +406,14 @@ func (h *WSHandler) readMessage(c *wsm.Client) {
 		case lqsUtil.LeftLQS:
 			h.sendMessage(c, mstr)
 		case lqsUtil.StartLQS:
-			h.startLiveQuizSession(mstr.Payload)
+			h.startLiveQuizSession(c, mstr.Payload)
 		case lqsUtil.DistQuestion:
 			h.distributeQuestion(mstr.Payload)
+		case lqsUtil.SetLQSStatus:
+			h.setLiveQuizSessionStatus(mstr.Payload)
 		default:
 			h.sendMessage(c, mstr)
 		}
-
 	}
 }
 
@@ -391,7 +435,18 @@ func (h *WSHandler) sendMessage(c *wsm.Client, ct wsm.Content) {
 	}
 }
 
-func (h *WSHandler) startLiveQuizSession(payload interface{}) {
+func (h *WSHandler) startLiveQuizSession(c *wsm.Client, payload interface{}) {
+	msg := &wsm.Message{
+		Content: wsm.Content{
+			Type:    lqsUtil.StartLQS,
+			Payload: nil,
+		},
+		LiveQuizSessionID: c.LiveQuizSessionID,
+		UserID:            c.ID,
+		IsHost:            c.IsHost,
+	}
+	h.hub.Broadcast <- msg
+
 	p, ok := payload.(map[string]interface{})
 	if !ok {
 		log.Printf("Error occured: %v", "Payload is not a map")
@@ -402,8 +457,18 @@ func (h *WSHandler) startLiveQuizSession(payload interface{}) {
 		return
 	}
 
+	h.hub.Moderate <- &wsm.Moderator{
+		LiveQuizSessionID: lqsID,
+		CurrentQuestion:   0,
+		Status:            lqsUtil.Starting,
+	}
+
 	done := make(chan struct{})
-	go h.countdown(5, lqsID, done)
+	go h.countdown(5, lqsID, wsm.Moderator{
+		LiveQuizSessionID: lqsID,
+		CurrentQuestion:   0,
+		Status:            lqsUtil.Starting,
+	}, done)
 	<-done
 
 	h.distributeQuestion(payload)
@@ -427,6 +492,12 @@ func (h *WSHandler) distributeQuestion(payload interface{}) {
 		}
 	}
 
+	h.hub.Moderate <- &wsm.Moderator{
+		LiveQuizSessionID: lqsID,
+		CurrentQuestion:   0,
+		Status:            lqsUtil.Questioning,
+	}
+
 	h.hub.Broadcast <- &wsm.Message{
 		Content: wsm.Content{
 			Type:    lqsUtil.DistQuestion,
@@ -438,18 +509,48 @@ func (h *WSHandler) distributeQuestion(payload interface{}) {
 	}
 }
 
-func (h *WSHandler) countdown(seconds int, lqsID string, cd chan<- struct{}) {
+func (h *WSHandler) setLiveQuizSessionStatus(payload interface{}) {
+	p, ok := payload.(map[string]interface{})
+	if !ok {
+		log.Printf("Error occured: %v", "Payload is not a map")
+		return
+	}
+	lqsID := p["id"].(string)
+	if _, ok := h.hub.LiveQuizSessions[lqsID]; !ok {
+		return
+	}
+
+	h.hub.Moderate <- &wsm.Moderator{
+		LiveQuizSessionID: lqsID,
+		CurrentQuestion:   0,
+		Status:            p["status"].(string),
+	}
+}
+
+func (h *WSHandler) countdown(seconds int, lqsID string, mod wsm.Moderator, cd chan<- struct{}) {
 	for i := seconds; i >= 0; i-- {
 		h.hub.Broadcast <- &wsm.Message{
 			Content: wsm.Content{
-				Type:    lqsUtil.Countdown,
-				Payload: i,
+				Type: lqsUtil.Countdown,
+				Payload: struct {
+					LiveQuizSessionID string `json:"lqsId"`
+					Timeleft          int    `json:"timeLeft"`
+					CurrentQuestion   int    `json:"curQ"`
+					Status            string `json:"status"`
+				}{
+					LiveQuizSessionID: lqsID,
+					Timeleft:          i,
+					CurrentQuestion:   mod.CurrentQuestion,
+					Status:            mod.Status,
+				},
 			},
 			LiveQuizSessionID: lqsID,
 			UserID:            "Countdown",
 			IsHost:            true,
 		}
-		time.Sleep(time.Second)
+		if i > 0 {
+			time.Sleep(time.Second)
+		}
 	}
 	close(cd)
 }
