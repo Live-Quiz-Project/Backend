@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Live-Quiz-Project/Backend/internal/router"
 	"github.com/Live-Quiz-Project/Backend/internal/db"
+	"github.com/Live-Quiz-Project/Backend/internal/router"
 )
 
 func main() {

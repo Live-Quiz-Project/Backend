@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS question (
   id TEXT PRIMARY KEY,
   quiz_id TEXT NOT NULL,
   is_parent_question BOOL,
-  question_id TEXT,
+  question_id TEXT,  -- Parent_id 
   type TEXT,
   "order" INT, -- Renamed "order" column
   content TEXT,

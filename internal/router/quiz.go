@@ -6,10 +6,16 @@ import (
 )
 
 func QuizManagementRoutes(r *gin.Engine) {
-	v1 := r.Group("/v1")
-	qr := v1.Group("/quiz-mgmt")
+	qr := r.Group("/v1")
+
+	qr.POST("/users",quiz.CreateUser)
+	qr.GET("/users", quiz.GetUsers)
+
 
 	qr.GET("/quizzes",quiz.GetQuizzes)
+	qr.GET("/quizzes/:id", quiz.GetQuizByID)
+	qr.POST("/quizzes",quiz.CreateQuiz)
+	// qr.DELETE("/quizzes/:id", quiz.DeleteQuizByID)
 	// qr := GET("/quiz", )
 
 	// wsr := r.Group("/lqses")
