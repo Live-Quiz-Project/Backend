@@ -9,14 +9,15 @@ func LiveQuizSessionRoutes(r *gin.Engine, wsHandler *ws.WSHandler) {
 	v1 := r.Group("/v1")
 
 	wsr := v1.Group("/lqses")
-	wsr.GET("/", wsHandler.GetLiveQuizSessions)
+	wsr.GET("", wsHandler.GetLiveQuizSessions)
 	wsr.GET("/:id", wsHandler.GetLiveQuizSessions)
 	wsr.GET("/:id/host", wsHandler.GetHost)
 	wsr.GET("/:id/participants", wsHandler.GetParticipants)
-	wsr.POST("/", wsHandler.CreateLiveQuizSession)
+	wsr.POST("", wsHandler.CreateLiveQuizSession)
 	wsr.DELETE("/:id", wsHandler.EndLiveQuizSession)
 	wsr.GET("/join/:code", wsHandler.JoinLiveQuizSession)
+	wsr.GET("/check/:code", wsHandler.CheckLiveQuizSessionAvailability)
 
 	resr := wsr.Group("/responses")
-	resr.POST("/", ws.ResponseHandler)
+	resr.POST("", ws.ResponseHandler)
 }
