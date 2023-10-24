@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Live-Quiz-Project/Backend/db"
+	"github.com/Live-Quiz-Project/Backend/internal/db"
 	"github.com/Live-Quiz-Project/Backend/internal/router"
 )
 
