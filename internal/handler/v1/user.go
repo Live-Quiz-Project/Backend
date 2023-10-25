@@ -1,32 +1,22 @@
-package user_handler
+package handler
 
 import (
 	"net/http"
 
-	"github.com/Live-Quiz-Project/Backend/internal/middleware"
+	us "github.com/Live-Quiz-Project/Backend/internal/middleware"
 	"github.com/Live-Quiz-Project/Backend/internal/model/user"
 	"github.com/Live-Quiz-Project/Backend/internal/util"
 	"github.com/gin-gonic/gin"
 )
 
-type UserHandler struct {
-	userService *middleware.UserService
-}
-
-func NewUserHandler(userService *middleware.UserService) *UserHandler {
-	return &UserHandler{
-		userService: userService,
-	}
-}
-
-func (uh *UserHandler) CreateUser(c *gin.Context) {
+func CreateUser(c *gin.Context) {
 	var newUser user.User
 	if err := c.BindJSON(&newUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	err := uh.userService.Register(&newUser)
+	err := us.Register(&newUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -35,7 +25,7 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Registration successful"})
 }
 
-func (uh *UserHandler) Login(c *gin.Context) {
+func Login(c *gin.Context) {
 	var credentials struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -46,7 +36,7 @@ func (uh *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := uh.userService.Login(credentials.Email, credentials.Password)
+	user, err := us.Login(credentials.Email, credentials.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return

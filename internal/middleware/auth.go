@@ -11,17 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserService struct {
-	// DB *sql.DB
-}
-
-func NewUserService() *UserService {
-	return &UserService{
-		// DB: db.DB,
-	}
-}
-
-func (us *UserService) Register(newUser *user.User) error {
+func Register(newUser *user.User) error {
 	db := db.DB
 	newUser.ID = uuid.New().String()
 
@@ -55,7 +45,7 @@ func (us *UserService) Register(newUser *user.User) error {
 
 	return nil
 }
-func (us *UserService) Login(email, password string) (*user.User, error) {
+func Login(email, password string) (*user.User, error) {
 	db := db.DB
 	var user user.User
 	err := db.QueryRow(`SELECT id, email, "password", profile_name, profile_pic, created_date, account_status FROM "user" WHERE email = $1`, email).Scan(

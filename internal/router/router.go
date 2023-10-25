@@ -3,9 +3,7 @@ package router
 import (
 	"time"
 
-	uh "github.com/Live-Quiz-Project/Backend/internal/handler/v1"
 	wsh "github.com/Live-Quiz-Project/Backend/internal/handler/v1/ws"
-	us "github.com/Live-Quiz-Project/Backend/internal/middleware"
 	wsm "github.com/Live-Quiz-Project/Backend/internal/model/ws"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -30,12 +28,10 @@ func InitRouter() {
 
 	wsHub := wsm.NewHub()
 	wsHandler := wsh.NewWSHandler(wsHub)
-	userService := us.NewUserService()
-	userHandler := uh.NewUserHandler(userService)
 	go wsHub.Run()
 
 	LiveQuizSessionRoutes(r, wsHandler)
-	UserRoutes(r, userHandler)
+	UserRoutes(r)
 	QuizManagementRoutes(r)
 }
 
