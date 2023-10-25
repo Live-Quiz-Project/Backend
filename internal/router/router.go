@@ -35,7 +35,7 @@ func InitRouter() {
 	go wsHub.Run()
 
 	LiveQuizSessionRoutes(r, wsHandler)
-	AuthRoutes(r, userHandler)
+	UserRoutes(r, userHandler)
 	QuizManagementRoutes(r)
 }
 

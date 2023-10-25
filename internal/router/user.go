@@ -5,10 +5,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRoutes(r *gin.Engine, userHandler *user_handler.UserHandler) {
+func UserRoutes(r *gin.Engine, userHandler *user_handler.UserHandler) {
 	v1 := r.Group("/v1")
-	authGroup := v1.Group("/auth")
+	authGroup := v1.Group("/users")
 
-	authGroup.POST("/register", userHandler.Register)
+	authGroup.POST("/register", userHandler.CreateUser)
 	authGroup.POST("/login", userHandler.Login)
 }

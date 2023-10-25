@@ -19,7 +19,7 @@ func NewUserHandler(userService *middleware.UserService) *UserHandler {
 	}
 }
 
-func (uh *UserHandler) Register(c *gin.Context) {
+func (uh *UserHandler) CreateUser(c *gin.Context) {
 	var newUser user.User
 	if err := c.BindJSON(&newUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -37,7 +37,7 @@ func (uh *UserHandler) Register(c *gin.Context) {
 
 func (uh *UserHandler) Login(c *gin.Context) {
 	var credentials struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
@@ -46,9 +46,9 @@ func (uh *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := uh.userService.Login(credentials.Username, credentials.Password)
+	user, err := uh.userService.Login(credentials.Email, credentials.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
