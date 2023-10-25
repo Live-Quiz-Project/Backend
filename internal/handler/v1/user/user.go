@@ -1,4 +1,4 @@
-package handler
+package user
 
 import (
 	"net/http"
@@ -16,7 +16,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	err := us.Register(&newUser)
+	err := us.CreateUser(&newUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

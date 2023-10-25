@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func Register(newUser *user.User) error {
+func CreateUser(newUser *user.User) error {
 	db := db.DB
 	newUser.ID = uuid.New().String()
 
@@ -45,6 +45,7 @@ func Register(newUser *user.User) error {
 
 	return nil
 }
+
 func Login(email, password string) (*user.User, error) {
 	db := db.DB
 	var user user.User
