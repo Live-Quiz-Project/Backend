@@ -4,15 +4,18 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"strconv"
+
+	// "strconv"
 
 	"github.com/Live-Quiz-Project/Backend/internal/db"
 	"github.com/Live-Quiz-Project/Backend/internal/model/user"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func CreateUser(newUser *user.User) error {
 	db := db.DB
+	newUser.ID = uuid.New().String()
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
@@ -22,35 +25,18 @@ func CreateUser(newUser *user.User) error {
 	newUser.Password = string(hashedPassword)
 
 	// Check if email already exists
-	var existingUserID string
-	err = db.QueryRow(`SELECT id FROM "user" WHERE email = $1`, newUser.Email).Scan(&existingUserID)
+	var existingUser user.User
+	err = db.QueryRow(`SELECT id FROM "user" WHERE email = $1`, newUser.Email).Scan(&existingUser.ID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Email does not exist, proceed to create new user
+		} else {
 			log.Println("Error checking for existing user:", err)
 			return err
 		}
 	} else {
 		return errors.New("email already taken")
 	}
-
-	// Retrieve the maximum ID
-	var maxID string
-	err = db.QueryRow(`SELECT MAX(id) FROM "user"`).Scan(&maxID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.Println("Error retrieving max user ID:", err)
-		return err
-	}
-
-	// Convert maxID to integer and increment by 1
-	nextID, err := strconv.Atoi(maxID)
-	if err != nil && maxID != "" { // If maxID is not an empty string and not a valid integer
-		log.Println("Error converting max user ID to integer:", err)
-		return err
-	}
-	nextID++
-
-	// Convert nextID back to string
-	newUser.ID = strconv.Itoa(nextID)
 
 	// Save the user to the database
 	_, err = db.Exec(`INSERT INTO "user" (id, email, "password", profile_name, profile_pic, created_date, account_status) VALUES ($1, $2, $3, $4, $5, NOW(), TRUE)`,
