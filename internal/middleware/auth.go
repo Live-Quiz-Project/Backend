@@ -18,7 +18,7 @@ func CreateUser(newUser *user.User) error {
 	newUser.ID = uuid.New().String()
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), 15)
 	if err != nil {
 		return err
 	}

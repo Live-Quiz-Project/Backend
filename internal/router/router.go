@@ -32,6 +32,7 @@ func InitRouter() {
 
 	LiveQuizSessionRoutes(r, wsHandler)
 	UserRoutes(r)
+	AuthRoutes(r)
 	QuizManagementRoutes(r)
 }
 
