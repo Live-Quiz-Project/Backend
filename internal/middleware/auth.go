@@ -18,7 +18,7 @@ func CreateUser(newUser *user.User) error {
 	newUser.ID = uuid.New().String()
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), 15)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
@@ -39,8 +39,8 @@ func CreateUser(newUser *user.User) error {
 	}
 
 	// Save the user to the database
-	_, err = db.Exec(`INSERT INTO "user" (id, email, "password", profile_name, created_date, account_status) VALUES ($1, $2, $3, $4, NOW(), FALSE)`,
-		newUser.ID, newUser.Email, newUser.Password, newUser.ProfileName)
+	_, err = db.Exec(`INSERT INTO "user" (id, email, "password", "name", created_date, account_status) VALUES ($1, $2, $3, $4, NOW(), TRUE)`,
+		newUser.ID, newUser.Email, newUser.Password, newUser.Name)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func CreateUser(newUser *user.User) error {
 func Login(email, password string) (*user.User, error) {
 	db := db.DB
 	var user user.User
-	err := db.QueryRow(`SELECT id, email, "password", profile_name, created_date, account_status FROM "user" WHERE email = $1`, email).Scan(
-		&user.ID, &user.Email, &user.Password, &user.ProfileName, &user.CreatedDate, &user.AccountStatus)
+	err := db.QueryRow(`SELECT id, email, "password", "name", created_date, account_status FROM "user" WHERE email = $1`, email).Scan(
+		&user.ID, &user.Email, &user.Password, &user.Name, &user.CreatedDate, &user.AccountStatus)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("invalid email or password")

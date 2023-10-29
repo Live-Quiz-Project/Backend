@@ -19,7 +19,7 @@ func GenerateToken(user *user.User) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // Token is valid for 1 day
 	claims := &Claims{
 		UserID:   user.ID,
-		Username: user.Username,
+		Username: user.Name,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
