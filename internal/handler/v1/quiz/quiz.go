@@ -17,6 +17,78 @@ import (
 	"github.com/google/uuid"
 )
 
+type optionText struct {
+	ID                string  `json:"id"`
+	QuestionID        string  `json:"questionId"`
+	Version           string  `json:"version"`
+	Order             int     `json:"order"`
+	Content           string  `json:"content"`
+	Mark              float64 `json:"mark"`
+	HaveCaseSensitive bool    `json:"haveCaseSensitive"`
+}
+
+type optionChoice struct {
+	ID         string  `json:"id"`
+	QuestionID string  `json:"questioId"`
+	Version    string  `json:"version"`
+	Order      int     `json:"order"`
+	Content    string  `json:"content"`
+	Mark       float64 `json:"mark"`
+	Color      string  `json:"color"`
+	IsCorrect  bool    `json:"isCorrect"`
+}
+
+type questionWithOption struct {
+	ID               string         `json:"id"`
+	QuizID           string         `json:"quizId"`
+	Version          string         `json:"version"`
+	IsParent         bool           `json:"isParent"`
+	ParentID         string         `json:"parentID"`
+	IsParentRequired bool           `json:"isParentRequired"`
+	Type             string         `json:"type"`
+	Order            int            `json:"order"`
+	Content          string         `json:"content"`
+	Note             string         `json:"note"`
+	Media            string         `json:"media"`
+	TimeLimit        int            `json:"timeLimit"`
+	HaveTimeFactor   bool           `json:"haveTimeFactor"`
+	TimeFactor       int            `json:"timeFactor"`
+	FontSize         int            `json:"font"`
+	LayoutIdx        int            `json:"layoutIdx"`
+	SelectedUpTo     int            `json:"selectedUpTo"`
+	OptionChoice     []optionChoice `json:"optionChoice,omitempty" gorm:"foreignKey:QuestionID"`
+	OptionText       []optionText   `json:"optionText,omitempty" gorm:"foreignKey:QuestionID"`
+}
+
+type quizWithQuestion struct {
+	ID           string               `json:"id"`
+	CreatorID    string               `json:"userId"`
+	Version      string               `json:"version"`
+	Title        string               `json:"title"`
+	Description  string               `json:"description"`
+	CoverImage   string               `json:"coverImage"`
+	CreatedDate  string               `json:"createdDate"`
+	ModifiedDate string               `json:"modifiedDate"`
+	IsDeleted    string               `json:"isDeleted"`
+	Questions    []questionWithOption `json:"questions" gorm:"foreignKey:QuizID"`
+}
+
+func (quizWithQuestion) TableName() string {
+	return "quiz"
+}
+
+func (questionWithOption) TableName() string {
+	return "question"
+}
+
+func (optionChoice) TableName() string {
+	return "option_choice"
+}
+
+func (optionText) TableName() string {
+	return "option_text"
+}
+
 func CreateUser(c *gin.Context) {
 	gormdb := db.GormDB
 
@@ -274,7 +346,7 @@ func GetQuizzes(c *gin.Context) {
 	c.JSON(http.StatusOK, quiz)
 }
 
-func GetAllQuizzesByUserID(c *gin.Context) {
+func GetListQuizzesByUserID(c *gin.Context) {
 	gormdb := db.GormDB
 
 	userID := c.Param("id")
@@ -341,4 +413,17 @@ func DeleteQuizByID(c *gin.Context) {
 
 	// Return a success message or appropriate response
 	c.JSON(http.StatusOK, gin.H{"message": "Quiz soft deleted successfully"})
+}
+
+func GetQuizDetailByQuizID(c *gin.Context) {
+
+	gormdb := db.GormDB
+
+	quizID := c.Param("id")
+
+	var response []quizWithQuestion
+	gormdb.Preload("Questions.OptionChoice").Preload("Questions.OptionText").Where("id = ?", quizID).Find(&response)
+
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, response)
 }

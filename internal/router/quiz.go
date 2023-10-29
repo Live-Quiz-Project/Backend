@@ -14,7 +14,8 @@ func QuizManagementRoutes(r *gin.Engine) {
 
 	qr.GET("quizzes", quiz.GetQuizzes)
 
-	qr.GET("quizzes/:id", quiz.GetAllQuizzesByUserID)
-	qr.POST("/quizzes", quiz.CreateQuiz)
-	qr.DELETE("/quizzes/:id", quiz.DeleteQuizByID)
+	//qr.GET("quizzes/:id", quiz.GetListQuizzesByUserID) // Get All Quiz in Profile
+	qr.POST("/quizzes", quiz.CreateQuiz) // Create Quiz with Full Detail (Quiz, Question, AllOption)
+	qr.DELETE("/quizzes/:id", quiz.DeleteQuizByID) // Soft Delete Quiz By ID
+	qr.GET("quizzes/:id", quiz.GetQuizDetailByQuizID) 
 }

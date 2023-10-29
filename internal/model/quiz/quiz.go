@@ -61,13 +61,13 @@ func (Question) TableName() string {
 // OptionChoice represents the "option_choice" table.
 type OptionChoice struct {
 	ID         string  `json:"id"`
-	QuestionID string  `json:"question_id"`
+	QuestionID string  `json:"questionId"`
 	Version    string  `json:"version"`
 	Order      int     `json:"order"`
 	Content    string  `json:"content"`
 	Mark       float64 `json:"mark"`
 	Color      string  `json:"color"`
-	IsCorrect  bool    `json:"is_correct"`
+	IsCorrect  bool    `json:"isCorrect"`
 }
 
 func (OptionChoice) TableName() string {
@@ -77,12 +77,12 @@ func (OptionChoice) TableName() string {
 // OptionText represents the "option_text" table.
 type OptionText struct {
 	ID                string  `json:"id"`
-	QuestionID        string  `json:"question_id"`
+	QuestionID        string  `json:"questionId"`
 	Version           string  `json:"version"`
 	Order             int     `json:"order"`
 	Content           string  `json:"content"`
 	Mark              float64 `json:"mark"`
-	HaveCaseSensitive bool    `json:"have_case_sensitive"`
+	HaveCaseSensitive bool    `json:"haveCaseSensitive"`
 }
 
 func (OptionText) TableName() string {
@@ -92,9 +92,9 @@ func (OptionText) TableName() string {
 // OptionMatching represents the "option_matching" table.
 type OptionMatching struct {
 	ID         string  `json:"id"`
-	QuestionID string  `json:"question_id"`
-	PromptID   string  `json:"prompt_id"`
-	OptionID   string  `json:"option_id"`
+	QuestionID string  `json:"questionId"`
+	PromptID   string  `json:"promptId"`
+	OptionID   string  `json:"optionId"`
 	Mark       float64 `json:"mark"`
 }
 
