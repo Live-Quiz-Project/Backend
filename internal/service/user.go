@@ -64,3 +64,30 @@ func GetUserByID(userID string) (*user.User, error) {
 
 	return &user, nil
 }
+
+func DeleteUser(userID string) error {
+	db := db.DB
+
+	_, err := db.Exec(`DELETE FROM "user" WHERE id = $1`, userID)
+	if err != nil {
+		log.Println("Error deleting user from the database:", err)
+		return err
+	}
+
+	log.Println("User deleted successfully:", userID)
+	return nil
+}
+
+func UpdateUser(userID string, updatedName string, updatedImage string) error {
+	db := db.DB
+
+	_, err := db.Exec(`UPDATE "user" SET "name" = $1, "image" = $2 WHERE id = $3`,
+		updatedName, updatedImage, userID)
+	if err != nil {
+		log.Println("Error updating user in the database:", err)
+		return err
+	}
+
+	log.Println("User updated successfully:", userID)
+	return nil
+}

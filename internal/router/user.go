@@ -11,4 +11,6 @@ func UserRoutes(r *gin.Engine) {
 
 	userR.POST("", userHandler.CreateUser)
 	userR.GET("/:id", userHandler.GetUserByID)
+	userR.DELETE("/:id", userHandler.DeleteUser)
+	userR.PUT("/:id", userHandler.UpdateUser)
 }
