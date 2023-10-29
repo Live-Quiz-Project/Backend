@@ -42,13 +42,15 @@ func CreateUser(newUser *user.User) error {
 	_, err = db.Exec(`INSERT INTO "user" (id, email, "password", "name", created_date, account_status) VALUES ($1, $2, $3, $4, NOW(), TRUE)`,
 		newUser.ID, newUser.Email, newUser.Password, newUser.Name)
 	if err != nil {
+		log.Println("Error saving user to the database:", err)
 		return err
 	}
 
+	log.Println("User created successfully:", newUser.ID)
 	return nil
 }
 
-func Login(email, password string) (*user.User, error) {
+func LogIn(email, password string) (*user.User, error) {
 	db := db.DB
 	var user user.User
 	err := db.QueryRow(`SELECT id, email, "password", "name", created_date, account_status FROM "user" WHERE email = $1`, email).Scan(

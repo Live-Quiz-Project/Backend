@@ -10,5 +10,4 @@ func UserRoutes(r *gin.Engine) {
 	authGroup := v1.Group("/users")
 
 	authGroup.POST("", ush.CreateUser)
-	authGroup.GET("/login", ush.Login)
 }

@@ -8,5 +8,5 @@ import (
 func AuthRoutes(r *gin.Engine) {
 	v1 := r.Group("/v1")
 
-	v1.GET("/login", ush.Login)
+	v1.POST("/login", ush.LogIn)
 }
