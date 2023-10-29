@@ -8,5 +8,6 @@ import (
 func main() {
 	router.InitRouter()
 	db.InitDB()
+	db.InitGormDB()
 	router.Start(":8080")
 }
