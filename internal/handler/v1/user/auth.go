@@ -3,7 +3,7 @@ package user
 import (
 	"net/http"
 
-	us "github.com/Live-Quiz-Project/Backend/internal/middleware"
+	authService "github.com/Live-Quiz-Project/Backend/internal/service"
 	"github.com/Live-Quiz-Project/Backend/internal/util"
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ func LogIn(c *gin.Context) {
 		return
 	}
 
-	user, err := us.LogIn(credentials.Email, credentials.Password)
+	user, err := authService.LogIn(credentials.Email, credentials.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return

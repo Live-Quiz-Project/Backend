@@ -3,8 +3,8 @@ package user
 import (
 	"net/http"
 
-	us "github.com/Live-Quiz-Project/Backend/internal/middleware"
 	"github.com/Live-Quiz-Project/Backend/internal/model/user"
+	userService "github.com/Live-Quiz-Project/Backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +15,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	err := us.CreateUser(&newUser)
+	err := userService.CreateUser(&newUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
