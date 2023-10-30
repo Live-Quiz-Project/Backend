@@ -44,6 +44,5 @@ func LogIn(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-		"user":          user,
 	})
 }
