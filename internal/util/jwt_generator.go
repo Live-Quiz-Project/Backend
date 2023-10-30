@@ -1,13 +1,24 @@
 package util
 
 import (
+	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/Live-Quiz-Project/Backend/internal/model/user"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/joho/godotenv"
 )
 
 var jwtSecret = []byte("secretKey")
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+}
 
 type Claims struct {
 	UserID   string `json:"userId"`
@@ -21,8 +32,10 @@ type RefreshClaims struct {
 }
 
 func GenerateToken(user *user.User) (accessToken string, refreshToken string, err error) {
+	accessTokenExpiryHours, _ := strconv.Atoi(os.Getenv("ACCESS_TOKEN_EXPIRY_HOUR"))
+	refreshTokenExpiryHours, _ := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRY_HOUR"))
 	// Generate Access Token
-	accessExpirationTime := time.Now().Add(24 * time.Hour) // Token is valid for 1 day
+	accessExpirationTime := time.Now().Add(time.Duration(accessTokenExpiryHours) * time.Hour)
 	accessClaims := &Claims{
 		UserID:   user.ID,
 		Username: user.Name,
@@ -37,7 +50,7 @@ func GenerateToken(user *user.User) (accessToken string, refreshToken string, er
 	}
 
 	// Generate Refresh Token
-	refreshExpirationTime := time.Now().Add(24 * time.Hour) // Token is valid for 1 days
+	refreshExpirationTime := time.Now().Add(time.Duration(refreshTokenExpiryHours) * time.Hour)
 	refreshClaims := &RefreshClaims{
 		UserID: user.ID,
 		StandardClaims: jwt.StandardClaims{
