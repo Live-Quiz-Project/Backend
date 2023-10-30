@@ -18,7 +18,6 @@ func AuthMiddleware(secretKey string) gin.HandlerFunc {
 			return
 		}
 
-		// Remove the 'Bearer ' prefix, if it exists
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
 		// Parse and validate the token
@@ -39,7 +38,7 @@ func AuthMiddleware(secretKey string) gin.HandlerFunc {
 			return
 		}
 
-		// Token is valid, continue to the next middleware/handler
+		// Token is valid
 		c.Next()
 	}
 }
