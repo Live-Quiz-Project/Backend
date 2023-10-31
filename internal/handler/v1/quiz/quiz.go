@@ -155,13 +155,12 @@ func CreateQuiz(c *gin.Context) {
 	tx := gormdb.Begin()
 
 	// JSON FROM FRONTEND
-	var response struct {
+	var request struct {
 		UserID      string `json:"userId"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
 		CoverImage  string `json:"coverImage"`
 		Questions   []struct {
-			Version          string `json:"version"`
 			IsParent         bool   `json:"isParent"`
 			ParentID         string `json:"parentID"`
 			IsParentRequired bool   `json:"isParentRequired"`
@@ -191,11 +190,51 @@ func CreateQuiz(c *gin.Context) {
 				Mark              float64 `json:"mark"`
 				HaveCaseSensitive bool    `json:"haveCaseSensitive"`
 			} `json:"optionText,omitempty"`
+
+			// OptionMatching []struct {
+			// 	PromptID	string  `json:"promptId"`
+			// 	OptionID 	string  `json:"optionId"`
+			// 	Mark			float64 `json:"mark"`
+			// }
+
+			SubQuestions []struct {
+				Version          string `json:"version"`
+				IsParent         bool   `json:"isParent"`
+				ParentID         string `json:"parentID"`
+				IsParentRequired bool   `json:"isParentRequired"`
+				Type             string `json:"type"`
+				Order            int    `json:"order"`
+				Content          string `json:"content"`
+				Note             string `json:"note"`
+				Media            string `json:"media"`
+				TimeLimit        int    `json:"timeLimit"`
+				HaveTimeFactor   bool   `json:"haveTimeFactor"`
+				TimeFactor       int    `json:"timeFactor"`
+				FontSize         int    `json:"font"`
+				LayoutIdx        int    `json:"layoutIdx"`
+				SelectedUpTo     int    `json:"selectedUpTo"`
+
+				OptionChoice []struct {
+					Order     int     `json:"order"`
+					Content   string  `json:"content"`
+					Mark      float64 `json:"mark"`
+					Color     string  `json:"color"`
+					IsCorrect bool    `json:"isCorrect"`
+				} `json:"optionChoice,omitempty"`
+	
+				OptionText []struct {
+					Order             int     `json:"order"`
+					Content           string  `json:"content"`
+					Mark              float64 `json:"mark"`
+					HaveCaseSensitive bool    `json:"haveCaseSensitive"`
+				} `json:"optionText,omitempty"`
+			} `json:"subQuestions,omitempty"`
+			//OptionPool []struct
 		} `json:"questions"`
 	}
 
 	// Keep value in Response
-	if err := c.ShouldBindJSON(&response); err != nil {
+	if err := c.ShouldBindJSON(&request); err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -213,11 +252,11 @@ func CreateQuiz(c *gin.Context) {
 
 	quizData := quiz.Quiz{
 		ID:           quizID.String(),
-		CreatorID:    response.UserID,
+		CreatorID:    request.UserID,
 		Version:      currentTime,
-		Title:        response.Title,
-		Description:  response.Description,
-		CoverImage:   response.CoverImage,
+		Title:        request.Title,
+		Description:  request.Description,
+		CoverImage:   request.CoverImage,
 		CreatedDate:  currentTime,
 		ModifiedDate: "",
 		IsDeleted:    "false",
@@ -232,7 +271,7 @@ func CreateQuiz(c *gin.Context) {
 		return
 	}
 
-	for _, question := range response.Questions {
+	for _, question := range request.Questions {
 
 		questionID, err := uuid.NewUUID()
 		if err != nil {
@@ -330,7 +369,7 @@ func CreateQuiz(c *gin.Context) {
 	c.JSON(http.StatusCreated, quizData)
 }
 
-func GetQuizzes(c *gin.Context) {
+func GetAllQuizzes(c *gin.Context) {
 	gormdb := db.GormDB
 
 	var quiz []quiz.Quiz
@@ -346,7 +385,7 @@ func GetQuizzes(c *gin.Context) {
 	c.JSON(http.StatusOK, quiz)
 }
 
-func GetListQuizzesByUserID(c *gin.Context) {
+func GetAllQuizzesByUserID(c *gin.Context) {
 	gormdb := db.GormDB
 
 	userID := c.Param("id")
@@ -364,26 +403,7 @@ func GetListQuizzesByUserID(c *gin.Context) {
 	c.JSON(http.StatusOK, quizzes)
 }
 
-func GetQuizByID(c *gin.Context) {
-	gormdb := db.GormDB
-
-	userID := c.Param("id")
-
-	var quiz []quiz.Quiz
-
-	result := gormdb.First(&quiz, "creator_id = ?", userID)
-
-	if result.Error != nil {
-		log.Printf("Error retrieving users: %v", result.Error)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving quiz by id"})
-		return
-	}
-	c.Header("Content-Type", "application/json")
-
-	c.JSON(http.StatusOK, quiz)
-}
-
-func DeleteQuizByID(c *gin.Context) {
+func SoftDeleteQuizByID(c *gin.Context) {
 	gormdb := db.GormDB
 
 	quizID := c.Param("id")
@@ -422,8 +442,44 @@ func GetQuizDetailByQuizID(c *gin.Context) {
 	quizID := c.Param("id")
 
 	var response []quizWithQuestion
-	gormdb.Preload("Questions.OptionChoice").Preload("Questions.OptionText").Where("id = ?", quizID).Find(&response)
+	gormdb.Preload("Questions.OptionChoice").
+		Preload("Questions.OptionText").
+		Where("id = ?", quizID).
+		Order("version desc").
+		First(&response)
 
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, response)
+}
+
+func GetQuestionDetailByQuizID(c *gin.Context) {
+	gormdb := db.GormDB
+
+	quizID := c.Param("quiz_id")
+
+	var response []questionWithOption
+	gormdb.Preload("OptionChoice").
+		Preload("OptionText").
+		Where("quiz_id = ?", quizID).
+		Order("version desc").
+		First(&response)
+
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, response)
+}
+
+// Test Sub-Function
+func GetQuizByID(c *gin.Context) {
+	quizID := c.Param("id")
+
+	req, err := GetQuizFromDB(quizID)
+
+	if err != nil {
+		log.Printf("Error retrieving users: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving users"})
+		return
+	}
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, req)
 }
