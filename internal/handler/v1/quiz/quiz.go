@@ -1,10 +1,12 @@
 package quiz
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"time"
-	"database/sql"
+
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,129 +17,230 @@ import (
 	"github.com/google/uuid"
 )
 
+type optionText struct {
+	ID                string  `json:"id"`
+	QuestionID        string  `json:"questionId"`
+	Version           string  `json:"version"`
+	Order             int     `json:"order"`
+	Content           string  `json:"content"`
+	Mark              float64 `json:"mark"`
+	HaveCaseSensitive bool    `json:"haveCaseSensitive"`
+}
+
+type optionChoice struct {
+	ID         string  `json:"id"`
+	QuestionID string  `json:"questioId"`
+	Version    string  `json:"version"`
+	Order      int     `json:"order"`
+	Content    string  `json:"content"`
+	Mark       float64 `json:"mark"`
+	Color      string  `json:"color"`
+	IsCorrect  bool    `json:"isCorrect"`
+}
+
+type questionWithOption struct {
+	ID               string         `json:"id"`
+	QuizID           string         `json:"quizId"`
+	Version          string         `json:"version"`
+	IsParent         bool           `json:"isParent"`
+	ParentID         string         `json:"parentID"`
+	IsParentRequired bool           `json:"isParentRequired"`
+	Type             string         `json:"type"`
+	Order            int            `json:"order"`
+	Content          string         `json:"content"`
+	Note             string         `json:"note"`
+	Media            string         `json:"media"`
+	TimeLimit        int            `json:"timeLimit"`
+	HaveTimeFactor   bool           `json:"haveTimeFactor"`
+	TimeFactor       int            `json:"timeFactor"`
+	FontSize         int            `json:"font"`
+	LayoutIdx        int            `json:"layoutIdx"`
+	SelectedUpTo     int            `json:"selectedUpTo"`
+	OptionChoice     []optionChoice `json:"optionChoice,omitempty" gorm:"foreignKey:QuestionID"`
+	OptionText       []optionText   `json:"optionText,omitempty" gorm:"foreignKey:QuestionID"`
+}
+
+type quizWithQuestion struct {
+	ID           string               `json:"id"`
+	CreatorID    string               `json:"userId"`
+	Version      string               `json:"version"`
+	Title        string               `json:"title"`
+	Description  string               `json:"description"`
+	CoverImage   string               `json:"coverImage"`
+	CreatedDate  string               `json:"createdDate"`
+	ModifiedDate string               `json:"modifiedDate"`
+	IsDeleted    string               `json:"isDeleted"`
+	Questions    []questionWithOption `json:"questions" gorm:"foreignKey:QuizID"`
+}
+
+func (quizWithQuestion) TableName() string {
+	return "quiz"
+}
+
+func (questionWithOption) TableName() string {
+	return "question"
+}
+
+func (optionChoice) TableName() string {
+	return "option_choice"
+}
+
+func (optionText) TableName() string {
+	return "option_text"
+}
+
 func CreateUser(c *gin.Context) {
-	db := db.DB
-	// Parse JSON data from the request body into a User struct
-	var user quiz.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	gormdb := db.GormDB
+
+	var response struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Name     string `json:"name"`
+	}
+
+	// Keep value in Response
+	if err := c.ShouldBindJSON(&response); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Generate a UUID for the userID
-	userID, err := uuid.NewUUID()
+	UserID, err := uuid.NewUUID()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
 		return
 	}
-	user.ID = userID.String()
 
-	user.CreatedDate = time.Now().Format(time.RFC3339)
+	created_date := time.Now().Format(time.RFC3339)
 
-	query := `
-		INSERT INTO "user" (id, email, password, profile_name, profile_pic, created_date, account_status, suspension_start_date, suspension_end_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	quiz_data := quiz.User{
+		ID:                  UserID.String(),
+		Email:               response.Email,
+		Password:            response.Password,
+		Name:                response.Name,
+		CreatedDate:         created_date,
+		AccountStatus:       "true",
+		SuspensionStartDate: "",
+		SuspensionEndDate:   "",
+	}
 
-	_, err = db.Exec(query, user.ID, user.Email, user.Password, user.ProfileName, user.ProfilePic, user.CreatedDate, user.AccountStatus, user.SuspensionStartDate, user.SuspensionEndDate)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
+	result := gormdb.Create(&quiz_data)
+	if result.Error != nil {
+		log.Printf("Error creating user: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while creating the user"})
 		return
 	}
 
-	// Respond with the created user's ID
-	c.JSON(http.StatusCreated, gin.H{"userID": user.ID})
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, quiz_data)
 }
 
 func GetUsers(c *gin.Context) {
-	db := db.DB
-	// Execute a database query to retrieve users
-	rows, err := db.Query("SELECT id, email, password, profile_name, profile_pic, created_date, account_status, suspension_start_date, suspension_end_date FROM \"user\"")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	gormdb := db.GormDB
+	var user []quiz.User
+	result := gormdb.Find(&user)
+	if result.Error != nil {
+		log.Printf("Error retrieving users: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving users"})
 		return
 	}
-	defer rows.Close()
+	c.Header("Content-Type", "application/json")
 
-	var users []quiz.User // Assuming you have a User struct defined
-	for rows.Next() {
-		var user quiz.User // Create a User struct to store data for each row
-		if err := rows.Scan(&user.ID, &user.Email, &user.Password, &user.ProfileName, &user.ProfilePic, &user.CreatedDate, &user.AccountStatus, &user.SuspensionStartDate, &user.SuspensionEndDate); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		users = append(users, user)
-	}
-
-	c.JSON(http.StatusOK, users) // Gin will marshal the 'users' slice into JSON
-}
-
-func GetQuizzes(c *gin.Context) {
-	db := db.DB
-	// Execute a database query to retrieve users
-	rows, err := db.Query("SELECT id, user_id, title, description, media, created_date, modified_date FROM quiz")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var quizzes []quiz.Quiz // Assuming you have a User struct defined
-	for rows.Next() {
-		var quiz quiz.Quiz // Create a User struct to store data for each row
-		if err := rows.Scan(&quiz.ID, &quiz.UserID, &quiz.Title, &quiz.Description, &quiz.Media, &quiz.CreatedDate, &quiz.ModifiedDate); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		quizzes = append(quizzes, quiz)
-	}
-
-	c.JSON(http.StatusOK, quizzes) // Gin will marshal the 'users' slice into JSON
-}
-
-func GetQuizByID(c *gin.Context) {
-	db := db.DB
-	quizID := c.Param("id") // Get the quizID from the URL parameter
-
-	// Execute a database query to retrieve the quiz by its ID
-	row := db.QueryRow("SELECT id, user_id, title, description, media, created_date, modified_date FROM quiz WHERE id = $1", quizID)
-
-	var quiz quiz.Quiz // Create a Quiz struct to store the data
-	err := row.Scan(&quiz.ID, &quiz.UserID, &quiz.Title, &quiz.Description, &quiz.Media, &quiz.CreatedDate, &quiz.ModifiedDate)
-	if err != nil {
-			if err == sql.ErrNoRows {
-					c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
-			} else {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			}
-			return
-	}
-
-	c.JSON(http.StatusOK, quiz) // Return the quiz as JSON
+	c.JSON(http.StatusOK, user)
 }
 
 func CreateQuiz(c *gin.Context) {
-	db := db.DB
+	gormdb := db.GormDB
 
-	tx, err := db.Begin()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin a database transaction"})
-		return
+	tx := gormdb.Begin()
+
+	// JSON FROM FRONTEND
+	var request struct {
+		UserID      string `json:"userId"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		CoverImage  string `json:"coverImage"`
+		Questions   []struct {
+			IsParent         bool   `json:"isParent"`
+			ParentID         string `json:"parentID"`
+			IsParentRequired bool   `json:"isParentRequired"`
+			Type             string `json:"type"`
+			Order            int    `json:"order"`
+			Content          string `json:"content"`
+			Note             string `json:"note"`
+			Media            string `json:"media"`
+			TimeLimit        int    `json:"timeLimit"`
+			HaveTimeFactor   bool   `json:"haveTimeFactor"`
+			TimeFactor       int    `json:"timeFactor"`
+			FontSize         int    `json:"font"`
+			LayoutIdx        int    `json:"layoutIdx"`
+			SelectedUpTo     int    `json:"selectedUpTo"`
+
+			OptionChoice []struct {
+				Order     int     `json:"order"`
+				Content   string  `json:"content"`
+				Mark      float64 `json:"mark"`
+				Color     string  `json:"color"`
+				IsCorrect bool    `json:"isCorrect"`
+			} `json:"optionChoice,omitempty"`
+
+			OptionText []struct {
+				Order             int     `json:"order"`
+				Content           string  `json:"content"`
+				Mark              float64 `json:"mark"`
+				HaveCaseSensitive bool    `json:"haveCaseSensitive"`
+			} `json:"optionText,omitempty"`
+
+			// OptionMatching []struct {
+			// 	PromptID	string  `json:"promptId"`
+			// 	OptionID 	string  `json:"optionId"`
+			// 	Mark			float64 `json:"mark"`
+			// }
+
+			SubQuestions []struct {
+				Version          string `json:"version"`
+				IsParent         bool   `json:"isParent"`
+				ParentID         string `json:"parentID"`
+				IsParentRequired bool   `json:"isParentRequired"`
+				Type             string `json:"type"`
+				Order            int    `json:"order"`
+				Content          string `json:"content"`
+				Note             string `json:"note"`
+				Media            string `json:"media"`
+				TimeLimit        int    `json:"timeLimit"`
+				HaveTimeFactor   bool   `json:"haveTimeFactor"`
+				TimeFactor       int    `json:"timeFactor"`
+				FontSize         int    `json:"font"`
+				LayoutIdx        int    `json:"layoutIdx"`
+				SelectedUpTo     int    `json:"selectedUpTo"`
+
+				OptionChoice []struct {
+					Order     int     `json:"order"`
+					Content   string  `json:"content"`
+					Mark      float64 `json:"mark"`
+					Color     string  `json:"color"`
+					IsCorrect bool    `json:"isCorrect"`
+				} `json:"optionChoice,omitempty"`
+
+				OptionText []struct {
+					Order             int     `json:"order"`
+					Content           string  `json:"content"`
+					Mark              float64 `json:"mark"`
+					HaveCaseSensitive bool    `json:"haveCaseSensitive"`
+				} `json:"optionText,omitempty"`
+			} `json:"subQuestions,omitempty"`
+			//OptionPool []struct
+		} `json:"questions"`
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	var response quiz.CreateQuizRequest
-	if err := c.ShouldBindJSON(&response); err != nil {
+	// Keep value in Response
+	if err := c.ShouldBindJSON(&request); err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	// Generate a UUID for the userID
 	quizID, err := uuid.NewUUID()
 	if err != nil {
 		tx.Rollback()
@@ -147,27 +250,29 @@ func CreateQuiz(c *gin.Context) {
 
 	currentTime := time.Now().Format(time.RFC3339)
 
-	quizRecord := quiz.Quiz{
+	quizData := quiz.Quiz{
 		ID:           quizID.String(),
-		UserID:       response.UserID,
-		Title:        response.Title,
-		Description:  response.Description,
-		Media:        response.Media,
+		CreatorID:    request.UserID,
+		Version:      currentTime,
+		Title:        request.Title,
+		Description:  request.Description,
+		CoverImage:   request.CoverImage,
 		CreatedDate:  currentTime,
 		ModifiedDate: "",
+		IsDeleted:    "false",
 	}
 
-	_, err = tx.Exec("INSERT INTO quiz (id, user_id, title, description, media, created_date, modified_date) VALUES ($1, $2, $3, $4, $5, $6, $7)", quizRecord.ID, quizRecord.UserID, quizRecord.Title, quizRecord.Description, quizRecord.Media, quizRecord.CreatedDate, quizRecord.ModifiedDate)
-	if err != nil {
+	// Create the new user in the database
+
+	if err := tx.Create(&quizData).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Failed to insert quiz into the database: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error At Quiz"})
+		log.Printf("Error creating quiz: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while creating the quiz"})
 		return
 	}
 
-	for _, question := range response.Questions {
+	for _, question := range request.Questions {
 
-		// Generate UUID for question
 		questionID, err := uuid.NewUUID()
 		if err != nil {
 			tx.Rollback()
@@ -175,180 +280,206 @@ func CreateQuiz(c *gin.Context) {
 			return
 		}
 
-		questionRecord := quiz.Question{
+		questionData := quiz.Question{
 			ID:               questionID.String(),
-			QuizID:           quizRecord.ID,
-			IsParentQuestion: question.IsParentQuestion,
-			QuestionID:       question.QuestionID,
+			QuizID:           quizID.String(),
+			Version:          currentTime,
+			IsParent:         question.IsParent,
+			ParentID:         question.ParentID,
+			IsParentRequired: question.IsParentRequired,
 			Type:             question.Type,
+			Order:            question.Order,
 			Content:          question.Content,
 			Note:             question.Note,
 			Media:            question.Media,
 			TimeLimit:        question.TimeLimit,
 			HaveTimeFactor:   question.HaveTimeFactor,
 			TimeFactor:       question.TimeFactor,
-			Font:             question.Font,
+			FontSize:         question.FontSize,
+			LayoutIdx:        question.LayoutIdx,
 			SelectedUpTo:     question.SelectedUpTo,
 		}
 
-		_, err = tx.Exec("INSERT INTO question (id, quiz_id, is_parent_question, question_id, type, \"order\", content, note, media, time_limit, have_time_factor, time_factor, font, selected_up_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", questionRecord.ID, questionRecord.QuizID, questionRecord.IsParentQuestion, questionRecord.QuestionID, questionRecord.Type, questionRecord.Order, questionRecord.Content, questionRecord.Note, questionRecord.Media, questionRecord.TimeLimit, questionRecord.HaveTimeFactor, questionRecord.TimeFactor, questionRecord.Font, questionRecord.SelectedUpTo)
-		if err != nil {
+		if err := tx.Create(&questionData).Error; err != nil {
 			tx.Rollback()
-			log.Printf("Failed to insert question into the database: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error At Question"})
+			log.Printf("Error creating question: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while creating the question"})
 			return
 		}
 
-		switch question.Type {
-		case "choice":
-			for _, option := range question.OptionChoice {
-				optionID, err := uuid.NewUUID()
-				if err != nil {
-					tx.Rollback()
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
-					return
-				}
+		// ----- Option ----- //
+		for _, optionChoice := range question.OptionChoice {
 
-				optionRecord := quiz.OptionChoice{
-					ID:         optionID.String(),
-					QuestionID: questionRecord.ID,
-					Order:      option.Order,
-					Content:    option.Content,
-					Point:      option.Point,
-					Color:      option.Color,
-					IsCorrect:  option.IsCorrect,
-				}
-
-				_, err = tx.Exec("INSERT INTO option_choice (id, question_id, \"order\", content, point, color, is_correct) VALUES ($1, $2, $3, $4, $5, $6, $7)", optionRecord.ID, optionRecord.QuestionID, optionRecord.Order, optionRecord.Content, optionRecord.Point, optionRecord.Color, optionRecord.IsCorrect)
-				if err != nil {
-					tx.Rollback()
-					log.Printf("Failed to insert option_choice into the database: %v", err)
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error at option choice"})
-					return
-				}
+			optionChoiceID, err := uuid.NewUUID()
+			if err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
+				return
 			}
-		case "text":
-			for _, option := range question.OptionText {
-				optionID, err := uuid.NewUUID()
-				if err != nil {
-					tx.Rollback()
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
-					return
-				}
 
-				optionRecord := quiz.OptionText{
-					ID:                optionID.String(),
-					QuestionID:        questionRecord.ID,
-					Content:           option.Content,
-					Point:             option.Point,
-					HaveCaseSensitive: option.HaveCaseSensitive,
-				}
-
-				_, err = tx.Exec("INSERT INTO option_text (id, question_id, content, point, have_case_sensitive) VALUES ($1, $2, $3, $4, $5)", optionRecord.ID, optionRecord.QuestionID, optionRecord.Content, optionRecord.Point, optionRecord.HaveCaseSensitive)
-				if err != nil {
-					tx.Rollback()
-					log.Printf("Failed to insert option_text into the database: %v", err)
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error at Option Text"})
-					return
-				}
-
+			optionChoiceData := quiz.OptionChoice{
+				ID:         optionChoiceID.String(),
+				QuestionID: questionID.String(),
+				Version:    currentTime,
+				Order:      optionChoice.Order,
+				Content:    optionChoice.Content,
+				Mark:       optionChoice.Mark,
+				Color:      optionChoice.Color,
+				IsCorrect:  optionChoice.IsCorrect,
 			}
-		// case "matching":
-		// 	for _, option := range question.OptionMatching {
-		// 		optionID, err := uuid.NewUUID()
-		// 		if err != nil {
-		//      tx.Rollback()
-		// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
-		// 			return
-		// 		}
 
-		// 		optionRecord := quiz.OptionMatching{
-		// 			ID:                optionID.String(),
-		// 			QuestionID:        questionRecord.ID,
-		// 			Content:           option.Content,
-		// 			Point:             option.Point,
-		// 			HaveCaseSensitive: option.HaveCaseSensitive,
-		// 		}
+			if err := tx.Create(&optionChoiceData).Error; err != nil {
+				tx.Rollback()
+				log.Printf("Error creating option_choice: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while creating the option_choice"})
+				return
+			}
+		}
 
-		// 		_, err = db.Exec("INSERT INTO option_text (id, question_id, content, point, have_case_sensitive) VALUES ($1, $2, $3, $4, $5)", optionRecord.ID, optionRecord.QuestionID, optionRecord.Content, optionRecord.Point, optionRecord.HaveCaseSensitive)
-		// 		if err != nil {
-		//      tx.Rollback()
-		// 			log.Printf("Failed to insert option_text into the database: %v", err)
-		// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error at Option Text"})
-		// 			return
-		// 		}
+		for _, optionText := range question.OptionText {
 
-		// 	}
-		// case "pin":
-		//     for _, option := range question.Type {
-		//         optionPin := option.Pin
-		//         // Handle OptionPin
-		//     }
-		default:
-			// Handle an unknown or unsupported question type
-			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported question type"})
-			return
+			optionTextID, err := uuid.NewUUID()
+			if err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate UUID"})
+				return
+			}
+
+			optionTextData := quiz.OptionText{
+				ID:                optionTextID.String(),
+				QuestionID:        questionID.String(),
+				Version:           currentTime,
+				Order:             optionText.Order,
+				Content:           optionText.Content,
+				Mark:              optionText.Mark,
+				HaveCaseSensitive: optionText.HaveCaseSensitive,
+			}
+
+			if err := tx.Create(&optionTextData).Error; err != nil {
+				tx.Rollback()
+				log.Printf("Error creating option_text: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while creating the option_text"})
+				return
+			}
 		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit the database transaction"})
+	tx.Commit()
+
+	c.JSON(http.StatusCreated, quizData)
+}
+
+func GetAllQuizzes(c *gin.Context) {
+	gormdb := db.GormDB
+
+	var quiz []quiz.Quiz
+	result := gormdb.Find(&quiz)
+
+	if result.Error != nil {
+		log.Printf("Error retrieving users: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving quiz"})
+		return
+	}
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, quiz)
+}
+
+func GetAllQuizzesByUserID(c *gin.Context) {
+	gormdb := db.GormDB
+
+	userID := c.Param("id")
+
+	var quizzes []quiz.Quiz
+	result := gormdb.Find(&quizzes, "creator_id = ?", userID)
+
+	if result.Error != nil {
+		log.Printf("Error retrieving users: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving quiz"})
+		return
+	}
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, quizzes)
+}
+
+func SoftDeleteQuizByID(c *gin.Context) {
+	gormdb := db.GormDB
+
+	quizID := c.Param("id")
+
+	var quiz quiz.Quiz
+
+	// Query the database to find the quiz by its ID
+	result := gormdb.First(&quiz, "id = ?", quizID)
+
+	if result.Error != nil {
+		// Handle the error if the quiz is not found
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while fetching the quiz"})
+		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"quizID": quizRecord.ID})
+	// Soft delete the quiz by updating the 'is_deleted' field
+	result = gormdb.Model(&quiz).Update("is_deleted", true)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while soft deleting the quiz"})
+		return
+	}
+
+	// Return a success message or appropriate response
+	c.JSON(http.StatusOK, gin.H{"message": "Quiz soft deleted successfully"})
 }
 
-// func DeleteQuizByID(c *gin.Context) {
-// 	db := db.DB
+func GetQuizDetailByQuizID(c *gin.Context) {
 
-// 	quizID := c.Param("id")
-// 	log.Printf("Received quizID: %v", quizID) // Add this line for debugging
+	gormdb := db.GormDB
 
+	quizID := c.Param("id")
 
-// 	// Check if the quiz exists in the database
-// 	var exists bool
-// 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM quiz WHERE id = $1)", quizID).Scan(&exists)
-// 	if err != nil {
-// 			log.Printf("Failed to check if the quiz exists: %v", err)
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if the quiz exists"})
-// 			return
-// 	}
+	var response []quizWithQuestion
+	gormdb.Preload("Questions.OptionChoice").
+		Preload("Questions.OptionText").
+		Where("id = ?", quizID).
+		Order("version desc").
+		First(&response)
 
-// 	if !exists {
-// 			log.Printf("Quiz not found: %v", quizID)
-// 			c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
-// 			return
-// 	}
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, response)
+}
 
-// 	// If the quiz exists, proceed with the deletion
-// 	tx, err := db.Begin()
-// 	if err != nil {
-// 			log.Printf("Failed to begin a database transaction: %v", err)
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin a database transaction"})
-// 			return
-// 	}
+func GetQuestionDetailByQuizID(c *gin.Context) {
+	gormdb := db.GormDB
 
-// 	// Delete the quiz
-// 	_, err = tx.Exec("DELETE FROM quiz WHERE id = $1", quizID)
-// 	if err != nil {
-// 			log.Printf("Failed to delete the quiz: %v", err)
-// 			tx.Rollback()
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete the quiz"})
-// 			return
-// 	}
+	quizID := c.Param("quiz_id")
 
-// 	// Commit the transaction if everything is successful
-// 	err = tx.Commit()
-// 	if err != nil {
-// 			log.Printf("Failed to commit the database transaction: %v", err)
-// 			tx.Rollback()
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit the database transaction"})
-// 			return
-// 	}
+	var response []questionWithOption
+	gormdb.Preload("OptionChoice").
+		Preload("OptionText").
+		Where("quiz_id = ?", quizID).
+		Order("version desc").
+		First(&response)
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "Quiz deleted successfully"})
-// }
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, response)
+}
+
+// Test Sub-Function
+func GetQuizByID(c *gin.Context) {
+	quizID := c.Param("id")
+
+	req, err := GetQuizFromDB(quizID)
+
+	if err != nil {
+		log.Printf("Error retrieving users: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while retrieving users"})
+		return
+	}
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, req) 
+}

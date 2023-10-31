@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS "user" (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE,
   "password" TEXT, 
-  profile_name TEXT,
-  profile_pic TEXT,
+  "name" TEXT,
+  "image" TEXT,
   created_date TEXT,
   account_status BOOL DEFAULT TRUE,
   suspension_start_date TEXT DEFAULT NULL,
@@ -14,21 +14,25 @@ CREATE TABLE IF NOT EXISTS "user" (
 -- Create the "quiz" table
 CREATE TABLE IF NOT EXISTS quiz (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  creator_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   title TEXT DEFAULT 'untitled',
-  description TEXT,
-  media TEXT,
+  "description" TEXT,
+  cover_image TEXT,
   created_date TEXT,
-  modified_date TEXT
+  modified_date TEXT,
+  is_deleted BOOL DEFAULT FALSE
 );
 
 -- Create the "question" table
 CREATE TABLE IF NOT EXISTS question (
   id TEXT PRIMARY KEY,
   quiz_id TEXT NOT NULL,
-  is_parent_question BOOL,
-  question_id TEXT,  -- Parent_id 
-  type TEXT,
+  "version" TEXT NOT NULL,
+  is_parent BOOL,
+  parent_id TEXT, 
+  is_parent_required BOOL, 
+  "type" TEXT,
   "order" INT, -- Renamed "order" column
   content TEXT,
   note TEXT,
@@ -36,7 +40,8 @@ CREATE TABLE IF NOT EXISTS question (
   time_limit INT,
   have_time_factor BOOL,
   time_factor INT,
-  font INT,
+  font_size INT,
+  layout_idx INT,
   selected_up_to INT
 );
 
@@ -44,9 +49,10 @@ CREATE TABLE IF NOT EXISTS question (
 CREATE TABLE IF NOT EXISTS option_choice (
   id TEXT PRIMARY KEY,
   question_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   "order" INT, -- Renamed "order" column
-  "content" TEXT,
-  "point" REAL,
+  content TEXT,
+  mark REAL,
   color TEXT,
   is_correct BOOL
 );
@@ -55,8 +61,10 @@ CREATE TABLE IF NOT EXISTS option_choice (
 CREATE TABLE IF NOT EXISTS option_text (
   id TEXT PRIMARY KEY,
   question_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
+  "order" INT,
   "content" TEXT,
-  "point" REAL,
+  mark REAL,
   have_case_sensitive BOOL
 );
 
@@ -64,17 +72,26 @@ CREATE TABLE IF NOT EXISTS option_text (
 CREATE TABLE IF NOT EXISTS option_matching (
   id TEXT PRIMARY KEY,
   question_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   prompt_id TEXT,
   option_id TEXT,
-  point REAL
+  mark REAL
 );
 
 -- Create the "option_matching_pool" table
-CREATE TABLE IF NOT EXISTS option_matching_pool (
+CREATE TABLE IF NOT EXISTS option_matching_prompt (
   id TEXT PRIMARY KEY,
   option_matching_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   "content" TEXT,
-  "type" TEXT,
+  "order" INT 
+);
+
+CREATE TABLE IF NOT EXISTS option_matching_option (
+  id TEXT PRIMARY KEY,
+  option_matching_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
+  "content" TEXT,
   "order" INT 
 );
 
@@ -82,19 +99,21 @@ CREATE TABLE IF NOT EXISTS option_matching_pool (
 CREATE TABLE IF NOT EXISTS option_pin (
   id TEXT PRIMARY KEY,
   question_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   x_axis INT,
   y_axis INT,
-  "point" REAL
+  "mark" REAL
 );
 
 -- Create the "live_quiz_session" table
 CREATE TABLE IF NOT EXISTS live_quiz_session (
   id TEXT PRIMARY KEY,
-  quiz_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  quiz_id TEXT NOT NULL,
+  "version" TEXT NOT NULL,
   started_at TEXT,
   ended_at TEXT,
-  is_exempt TEXT[],
+  exempted_question_ids TEXT[],
   status TEXT
 );
 
@@ -103,9 +122,8 @@ CREATE TABLE IF NOT EXISTS participant (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   lqs_id TEXT NOT NULL,
-  name TEXT,
-  point REAL,
-  status TEXT
+  "name" TEXT,
+  marks REAL
 );
 
 -- Create the "response_choice" table
@@ -151,7 +169,7 @@ CREATE TABLE IF NOT EXISTS admin (
 -- -- Create the foreign key constraints
 -- -- Add foreign key references after all tables have been created
 ALTER TABLE quiz
-ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES "user" (id);
+ADD CONSTRAINT fk_creator_id FOREIGN KEY (creator_id) REFERENCES "user" (id);
 
 ALTER TABLE live_quiz_session
 ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES "user" (id);
@@ -177,8 +195,11 @@ ADD CONSTRAINT fk_question_id FOREIGN KEY (question_id) REFERENCES question (id)
 ALTER TABLE option_matching
 ADD CONSTRAINT fk_question_id FOREIGN KEY (question_id) REFERENCES question (id);
 
-ALTER TABLE option_matching_pool
-ADD CONSTRAINT fk_option_matching_id FOREIGN KEY (option_matching_id) REFERENCES option_matching (id);
+ALTER TABLE option_matching_prompt
+ADD CONSTRAINT fk_option_matching_prompt FOREIGN KEY (option_matching_id) REFERENCES option_matching (id);
+
+ALTER TABLE option_matching_option
+ADD CONSTRAINT fk_option_matching_prompt FOREIGN KEY (option_matching_id) REFERENCES option_matching (id);
 
 ALTER TABLE option_pin
 ADD CONSTRAINT fk_question_id FOREIGN KEY (question_id) REFERENCES question (id);
@@ -205,7 +226,10 @@ ALTER TABLE response_matching
 ADD CONSTRAINT fk_option_matching_id FOREIGN KEY (option_matching_id) REFERENCES option_matching (id);
 
 ALTER TABLE response_matching
-ADD CONSTRAINT fk_option_matching_pool_id FOREIGN KEY (prompt_id) REFERENCES option_matching_pool (id);
+ADD CONSTRAINT fk_option_matching_prompt_id FOREIGN KEY (prompt_id) REFERENCES option_matching_prompt (id);
+
+ALTER TABLE response_matching
+ADD CONSTRAINT fk_option_matching_option_id FOREIGN KEY (option_id) REFERENCES option_matching_option (id);
 
 ALTER TABLE response_pin
 ADD CONSTRAINT fk_option_pin_id FOREIGN KEY (option_pin_id) REFERENCES option_pin (id);
