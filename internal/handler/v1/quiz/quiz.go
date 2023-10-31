@@ -221,7 +221,7 @@ func CreateQuiz(c *gin.Context) {
 					Color     string  `json:"color"`
 					IsCorrect bool    `json:"isCorrect"`
 				} `json:"optionChoice,omitempty"`
-	
+
 				OptionText []struct {
 					Order             int     `json:"order"`
 					Content           string  `json:"content"`
@@ -481,5 +481,5 @@ func GetQuizByID(c *gin.Context) {
 	}
 	c.Header("Content-Type", "application/json")
 
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, req) 
 }
