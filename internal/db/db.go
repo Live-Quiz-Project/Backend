@@ -4,10 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+
 	_ "github.com/lib/pq" // The database driver in use.
 )
 
 var DB *sql.DB
+
+var GormDB *gorm.DB
 
 const (
 	host     = "localhost"
@@ -33,4 +38,23 @@ func InitDB() {
 	}
 
 	fmt.Println("Connected to the database")
+}
+
+func InitGormDB() {
+	var err error
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	db, err := gorm.Open(postgres.Open(psqlconn), &gorm.Config{})
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = DB.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	GormDB = db
+
+	fmt.Println("Connected to the database with GORM")
 }

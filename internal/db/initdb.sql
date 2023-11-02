@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS question (
   quiz_id TEXT NOT NULL,
   "version" TEXT NOT NULL,
   is_parent BOOL,
-  parent_id TEXT,  
+  parent_id TEXT, 
+  is_parent_required BOOL, 
   "type" TEXT,
   "order" INT, -- Renamed "order" column
   content TEXT,

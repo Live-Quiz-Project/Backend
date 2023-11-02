@@ -9,17 +9,17 @@ func QuizManagementRoutes(r *gin.Engine) {
 	v1 := r.Group("/v1")
 	qr := v1.Group("/quiz-mgmt")
 
-	qr.GET("/quizzes",quiz.GetQuizzes)
-	// qr := GET("/quiz", )
+	qr.POST("/users", quiz.CreateUser)
+	qr.GET("/users", quiz.GetUsers)
 
-	// wsr := r.Group("/lqses")
-	// wsr.GET("/", wsHandler.GetLiveQuizSessions)
-	// wsr.GET("/:id", wsHandler.GetLiveQuizSessions)
-	// wsr.GET("/:id/host", wsHandler.GetHost)
-	// wsr.GET("/:id/participants", wsHandler.GetParticipants)
-	// wsr.POST("/", wsHandler.CreateLiveQuizSession)
-	// wsr.DELETE("/", wsHandler.EndLiveQuizSession)
 
-	// wsr.GET("/join/:code", wsHandler.JoinLiveQuizSession)
-	// // wsr.GET("/start/:code", wsHandler.StartLiveQuizSession)
+	qr.GET("quizzes", quiz.GetAllQuizzes)
+	qr.GET("quizzes/:id", quiz.GetQuizDetailByQuizID) 
+
+	//qr.GET("quizzes/:id", quiz.GetListQuizzesByUserID) // Get All Quiz in Profile
+	qr.POST("/quizzes", quiz.CreateQuiz) // Create Quiz with Full Detail (Quiz, Question, AllOption)
+	qr.DELETE("/quizzes/:id", quiz.SoftDeleteQuizByID) // Soft Delete Quiz By ID
+
+	qr.GET("questions/:quiz_id", quiz.GetQuestionDetailByQuizID)
+	
 }
