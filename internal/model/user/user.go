@@ -1,14 +1,14 @@
 package user
 
 type User struct {
-	ID                  string `json:"id"`
-	Username            string `json:"username"`
-	Password            string `json:"password"`
-	Email               string `json:"email"`
-	ProfileName         string `json:"profileName"`
-	ProfilePic          string `json:"profilePic"`
-	CreatedDate         string `json:"createdDate"`
-	AccountStatus       string `json:"accountStatus"`
-	SuspensionStartDate string `json:"suspensionStartDate"`
-	SuspensionEndDate   string `json:"suspensionEndDate"`
+	ID                  string
+	Email               string
+	Password            string
+	Name                string
+	ConfirmPassword     string
+	Image               string
+	CreatedDate         string
+	AccountStatus       bool
+	SuspensionStartDate string
+	SuspensionEndDate   string
 }

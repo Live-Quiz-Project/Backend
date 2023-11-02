@@ -19,13 +19,12 @@
 /bin
 /tmp
 */tmp
-/postgres
+# /postgres
 
 # Go workspace file
 go.work
 
 .env
-.scannerwork
 
 # Local Database
-postgres/
+# postgres/
