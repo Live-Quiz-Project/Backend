@@ -10,19 +10,12 @@ import (
 
 func LogIn(c *gin.Context) {
 	var credentials struct {
-		Email           string `json:"email"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirmPassword"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	if err := c.BindJSON(&credentials); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	// Check if password and confirmPassword match
-	if credentials.Password != credentials.ConfirmPassword {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Password and confirm password do not match"})
 		return
 	}
 
